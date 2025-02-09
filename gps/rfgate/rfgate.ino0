@@ -9,8 +9,8 @@
 #define GPS_PMTK_Q_RELEASE        "$PMTK605*31\r\n";
 #define GPS_PMTK_API_Q_DATUM      "$PMTK430*35\r\n";
 
-CircularBuffer<char, 2500> g_cbuffer;
-CircularBuffer<uint8_t, 120> g_cbuflen;
+CircularBuffer<char, 2048> g_cbuffer;
+CircularBuffer<uint8_t, 32> g_cbuflen;
 
 unsigned long g_millis=0;
 
@@ -41,49 +41,16 @@ void setup(void)
   Serial.println("RF gate");
 
 
-//  shox2test();
+  shox2test();
 
   
   Serial2.print(GPS_RF_RESET_CMD);
 }
 /**********************************************************************************/
-void logbufinfo(char *head)
-{
-  Serial.print(head);
-  Serial.print(g_cbuffer.size());
-  Serial.print(" ");
-  Serial.println(g_cbuflen.size());
-}
-/**********************************************************************************/
-void logbufdata(char *head)
-{
-  int i;
-
-  Serial.print(head);
-
-   for(i=0;i < g_cbuffer.size();i++) {
-    Serial.print(g_cbuffer[i]);
-   }
-   Serial.println();
-}
-/**********************************************************************************/
-void logbuf1line(char *head)
-{
-  int i;
-
-  Serial.print(head);
-
-   for(i=0;i < g_cbuflen[0];i++) {
-    Serial.print(g_cbuffer[i]);
-   }
-   Serial.println();
-}
-/**********************************************************************************/
 void loop(void)
 {
   char c,*p;
-  uint8_t i,j,l;
-  static uint8_t l_llcn=0;        //last line char number
+  uint8_t i,l;
   static char l_lc='\0';
   static char l_lcgps='\0';
   static uint8_t l_c2s=1;
@@ -101,19 +68,14 @@ void loop(void)
   while(Serial1.available()) {
     c=Serial1.read();
 
-Serial.write(c);
-    if(g_cbuffer.isFull()) {
-//      logbufinfo("full1: ");
-      l=g_cbuflen.shift();
-      for(i=0;i < l;i++) {
-        g_cbuffer.shift();
-      }
-//      logbufinfo("full2: ");
-    }
-
+//Serial.write(c);
 
     g_cbuffer.push(c);
     if((c == '\n') && (l_lc == '\r')) {
+//Serial.print("line read from gps1 ");
+//Serial.print(g_cbuffer.size());
+//Serial.print(" ");
+//Serial.println(g_cbuflen.size());
       if(g_cbuflen.size() == 0) {
         g_cbuflen.push(g_cbuffer.size());
       } else {
@@ -124,11 +86,20 @@ Serial.write(c);
         l=g_cbuffer.size()-l;
         g_cbuflen.push((uint8_t)l);
       }
+//Serial.print("line read from gps2 ");
+//Serial.print(g_cbuffer.size());
+//Serial.print(" ");
+//Serial.println(g_cbuflen.size());
     }
     l_lc=c;
   }
   
-//  logbufinfo("no data from gps: ");
+/*  
+Serial.print("===== buffer size ");
+Serial.print(g_cbuflen.size());
+Serial.print("  ");
+Serial.println(g_cbuffer.size());
+*/
 
 #if 0
   if(((g_millis-l_tct) > 2000) && (g_cbuflen.size() == 0)) {
@@ -159,12 +130,11 @@ Serial.println("\n+++++ writing buffer");
   }
 #endif  
 
-  if((l_c2s_time > 0) && ((g_millis-l_c2s_time) > 200)) {
+//Serial.print("out of cycle ");
+//Serial.println(g_cbuflen.size());
 
-//    logbufinfo("buf info: ");
-//    logbufdata("buffer: ");
-//    logbuf1line("buffer1: ");
 
+  if((l_c2s_time > 0) && ((g_millis-l_c2s_time) > 1000)) {
     l_c2s=1;
     l_c2s_time=g_millis;
   }
@@ -172,28 +142,26 @@ Serial.println("\n+++++ writing buffer");
   if(l_c2s == 1) {
 //Serial.print("***** Sending command0 ");
 //Serial.println(g_cbuflen.size());
-
-    for(j=0;j < 5;j++) {
-      if(g_cbuflen.size() > 0) {
-        l=g_cbuflen.shift();
-        Serial2.print(GPS_RF_READ_CMD);
-        Serial2.write(l);
-        for(i=0;i < l;i++) {
-          c=g_cbuffer.shift();
-          Serial2.write(c);
-          Serial.write(c);
-        }
-      } else {
-  //Serial.println("***** Sending command2");
-        Serial2.print(GPS_RF_SEND_CMD);
+    if(g_cbuflen.size() > 0) {
+//Serial.println("***** Sending command1");
+      l=g_cbuflen.shift();
+//Serial.print("***** Sending command1 ");
+//Serial.print(g_cbuflen.size());
+//Serial.print(" ");      
+//Serial.println(l);      
+      Serial2.print(GPS_RF_READ_CMD);
+      Serial2.write(l);
+      for(i=0;i < l;i++) {
+        c=g_cbuffer.shift();
+        Serial2.write(c);
+        Serial.write(c);
       }
+    } else {
+//Serial.println("***** Sending command2");
+      Serial2.print(GPS_RF_SEND_CMD);
     }
     l_c2s=0;
-//    logbuf1line("buffer2: ");
   }
-
-  //logbufinfo("no data from gps: ");
-
 
   if(Serial2.available()) {
     c=Serial2.read();

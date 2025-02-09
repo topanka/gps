@@ -1,4 +1,4 @@
-#include <CircularBuffer.h>
+#include <CircularBuffer.hpp>
 #include <unishox2.h>
 
 #define GPS_RF_SEND_CMD        's'
@@ -57,7 +57,8 @@ void loop(void)
     }
     
     g_cbuffer.push(c);
-//    Serial.write(c);
+
+    Serial.write(c);
   }
 
   if((l_cmd == GPS_RF_SEND_CMD) && (g_cbuffer.size() > 0)) {   
@@ -80,6 +81,7 @@ void loop(void)
   }
 
   if(ba=Serial2.available()) {
+
     if(l_cmd == GPS_RF_READ_CMD) {
       if(l_rop == 0) {
         l_rop=Serial2.read();
@@ -105,16 +107,17 @@ void loop(void)
       return;
     } else if(l_cmd != '\0') {
       c=Serial2.read();
-Serial.println("invalid read");
+Serial.print("invalid read: ");
+Serial.println(c);
       return;
     }
     l_cmd=Serial2.read();
-/*    
+    
 Serial.print(ba);
 Serial.print(" read cmd:");
 Serial.println(l_cmd);
 Serial.println(g_cbuffer.available());
-*/
+
     if(l_cmd == GPS_RF_SEND_CMD) {
       l_fc=1;
     } else if(l_cmd == GPS_RF_RESET_CMD) {
